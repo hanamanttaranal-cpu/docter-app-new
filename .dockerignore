@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+dist
+.git
+.github
+.idea
+.vscode
+Dockerfile*
+docker-compose*
+Jenkinsfile
+README.md
+backend/target
+backend/.mvn
