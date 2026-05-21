@@ -1,112 +1,156 @@
 pipeline {
     agent any
 
+    tools {
+        jdk 'jdk21'
+        maven 'maven3'
+    }
+
     environment {
-        // Shared repository metadata and docker tag configurations
-        REGISTRY_URL          = 'my-docker-registry.com'
-        BACKEND_IMAGE_NAME    = 'docconsult-backend'
-        FRONTEND_IMAGE_NAME   = 'docconsult-frontend'
-        IMAGE_TAG             = "build-${env.BUILD_NUMBER}"
-        
-        // Inject Cloudinary Credentials for build-time assets or test environment profiles
+        // SonarQube Scanner Tool definition
+        SCANNER_HOME          = tool 'sonar-scanner'
+
+        // Cloudinary credentials matching local profile requirements
         CLOUDINARY_CLOUD_NAME = 'docconsult_cloud'
         CLOUDINARY_API_KEY    = '346394969957731'
         CLOUDINARY_API_SECRET = 'UbgLX3_vAMfvnHupOMGxxkN_WkM'
     }
 
     stages {
-        stage('🛠️ Environment Validation') {
+
+        stage('Clean Workspace') {
             steps {
-                echo 'Checking build prerequisites...'
-                sh 'java -version'
-                sh 'mvn -version'
-                sh 'node -v'
-                sh 'npm -v'
-                sh 'docker --version'
+                echo 'Cleaning pipeline workspace archives...'
+                cleanWs()
             }
         }
 
-        stage('☕ Build & Test Java Backend') {
+        stage('Git Checkout') {
             steps {
-                echo 'Compiling and packaging Spring Boot 3 enterprise application jar...'
+                echo 'Checking out source repository branch: main...'
+                git branch: 'main',
+                    credentialsId: 'git-check',
+                    url: 'https://github.com/hanamanttaranal-cpu/docter-app-new.git'
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                echo 'Compiling Java Spring Boot backend modules...'
                 dir('backend') {
-                    // Packages the jar while skipping tests for continuous integration speed
+                    sh 'mvn clean compile'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Executing Java Spring Boot project unit and integration tests...'
+                dir('backend') {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Trivy File System Scan') {
+            steps {
+                echo 'Running Trivy file system vulnerability scan...'
+                sh 'trivy fs . > trivy-fs-report.txt'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Triggering static code analysis to SonarQube Server...'
+                withSonarQubeEnv('sonar-server') {
+                    sh """
+                    ${SCANNER_HOME}/bin/sonar-scanner \
+                    -Dsonar.projectName=doctor-backend \
+                    -Dsonar.projectKey=doctor-backend \
+                    -Dsonar.sources=backend/src \
+                    -Dsonar.java.binaries=backend/target/classes
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                echo 'Waiting for SonarQube Quality Gate analysis to finalize...'
+                waitForQualityGate abortPipeline: false
+            }
+        }
+
+        stage('Build Package') {
+            steps {
+                echo 'Building and packaging bootable Spring Boot JAR file (skipping local unit testing for artifact production)...'
+                dir('backend') {
                     sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        stage('⚛️ Build React Frontend') {
+        stage('Publish To Nexus') {
             steps {
-                echo 'Installing Node dependencies and compiling production Vite assets...'
-                sh 'npm install'
-                sh 'npm run build'
-            }
-        }
-
-        stage('🐳 Build Backend Docker Container') {
-            steps {
-                echo 'Building Java microservice container image...'
-                // CRITICAL FIX: The context for the backend Dockerfile is the /backend directory.
-                // Using the specific file flag (-f) and specifying folder context allows Jenkins to find files.
-                sh "docker build -t ${REGISTRY_URL}/${BACKEND_IMAGE_NAME}:${IMAGE_TAG} -f backend/Dockerfile backend"
-                sh "docker tag ${REGISTRY_URL}/${BACKEND_IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${BACKEND_IMAGE_NAME}:latest"
-            }
-        }
-
-        stage('🐳 Build Role-based Frontend Docker Containers') {
-            steps {
-                echo 'Building Patient, Doctor, and Admin independent frontend web container images...'
-                
-                // 1. Patient Portal Container
-                sh "docker build -t ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-patient:${IMAGE_TAG} --build-arg ROLE=PATIENT -f Dockerfile.frontend ."
-                sh "docker tag ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-patient:${IMAGE_TAG} ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-patient:latest"
-                
-                // 2. Doctor Portal Container
-                sh "docker build -t ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-doctor:${IMAGE_TAG} --build-arg ROLE=DOCTOR -f Dockerfile.frontend ."
-                sh "docker tag ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-doctor:${IMAGE_TAG} ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-doctor:latest"
-
-                // 3. Admin Portal Container
-                sh "docker build -t ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-admin:${IMAGE_TAG} --build-arg ROLE=ADMIN -f Dockerfile.frontend ."
-                sh "docker tag ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-admin:${IMAGE_TAG} ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-admin:latest"
-            }
-        }
-
-        stage('🔒 DevSecOps Security Scan') {
-            steps {
-                echo 'Simulating credential leaks and security vulnerability scans...'
-                // Placeholder for real tools like Trivy or SonarQube
-                echo "Credentials matching Cloudinary endpoint ${env.CLOUDINARY_API_KEY} verified safe and externalized."
-            }
-        }
-
-        stage('🚀 Ship & Deploy Images') {
-            steps {
-                echo 'Pushing finalized containers to the Enterprise Private Docker Registry...'
-                /*
-                withCredentials([usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-                    sh 'docker login -u $REG_USER -p $REG_PASS $REG_URL'
-                    sh "docker push ${REGISTRY_URL}/${BACKEND_IMAGE_NAME}:${IMAGE_TAG}"
-                    sh "docker push ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-patient:${IMAGE_TAG}"
-                    sh "docker push ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-doctor:${IMAGE_TAG}"
-                    sh "docker push ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-admin:${IMAGE_TAG}"
+                echo 'Deploying packaged artifact to enterprise Nexus repository host...'
+                dir('backend') {
+                    withMaven(
+                        globalMavenSettingsConfig: 'maven-setting',
+                        jdk: 'jdk21',
+                        maven: 'maven3',
+                        traceability: true
+                    ) {
+                        sh 'mvn deploy -DskipTests'
+                    }
                 }
-                */
-                echo "Successfully compiled and prepared Docker containers:"
-                echo "-> Backend: ${REGISTRY_URL}/${BACKEND_IMAGE_NAME}:${IMAGE_TAG}"
-                echo "-> Frontend Patient (Port 3000): ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-patient:${IMAGE_TAG}"
-                echo "-> Frontend Doctor (Port 3001): ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-doctor:${IMAGE_TAG}"
-                echo "-> Frontend Admin (Port 3002): ${REGISTRY_URL}/${FRONTEND_IMAGE_NAME}-admin:${IMAGE_TAG}"
             }
         }
+
+        stage('Docker Compose Build') {
+            steps {
+                echo 'Building Multi-Port backend and role-grouped frontend Docker images...'
+                sh 'docker compose build'
+            }
+        }
+
+        stage('Docker Images') {
+            steps {
+                echo 'Listing compiled docker images on the local agent registry...'
+                sh 'docker images'
+            }
+        }
+
+        stage('Trivy Docker Image Scan') {
+            steps {
+                echo 'Running Trivy security scan on backend and customized frontend images...'
+                sh 'trivy image docconsult-backend:latest > trivy-image-report.txt'
+                sh 'trivy image docconsult-frontend-patient:latest >> trivy-image-report.txt'
+                sh 'trivy image docconsult-frontend-doctor:latest >> trivy-image-report.txt'
+                sh 'trivy image docconsult-frontend-admin:latest >> trivy-image-report.txt'
+            }
+        }
+
+        stage('Docker Compose Up') {
+            steps {
+                echo 'Launching localized staging stack in background (detached mode)...'
+                sh 'docker compose up -d'
+            }
+        }
+
     }
 
     post {
-        success {
-            echo "✅ Jenkins pipeline build completed successfully!"
+        always {
+            echo 'Archiving stage reports and log outputs in workspace...'
+            archiveArtifacts artifacts: '*.txt', fingerprint: true
         }
+
+        success {
+            echo 'Pipeline Executed Successfully'
+        }
+
         failure {
-            echo "❌ Pipeline build ended in FAILURE. Check step stdout and Maven/Webpack logs above."
+            echo 'Pipeline Failed'
         }
     }
 }

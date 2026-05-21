@@ -29,6 +29,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: docconsult-backend:latest
     container_name: docconsult-backend
     restart: always
     ports:
@@ -55,6 +56,7 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         - ROLE=PATIENT
+    image: docconsult-frontend-patient:latest
     container_name: docconsult-frontend-patient
     restart: always
     ports:
@@ -73,6 +75,7 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         - ROLE=DOCTOR
+    image: docconsult-frontend-doctor:latest
     container_name: docconsult-frontend-doctor
     restart: always
     ports:
@@ -91,6 +94,7 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         - ROLE=ADMIN
+    image: docconsult-frontend-admin:latest
     container_name: docconsult-frontend-admin
     restart: always
     ports:

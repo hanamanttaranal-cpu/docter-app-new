@@ -32,7 +32,7 @@ export default function App() {
 
   // Helper to detect current locked role from build-time environment variable OR active host port
   const getRoleFromEnvironmentOrPort = (): 'PATIENT' | 'DOCTOR' | 'ADMIN' => {
-    const envRole = import.meta.env.VITE_APP_ROLE;
+    const envRole = (import.meta as any).env?.VITE_APP_ROLE;
     if (envRole === 'ADMIN' || envRole === 'DOCTOR' || envRole === 'PATIENT') {
       return envRole;
     }
