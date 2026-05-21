@@ -77,7 +77,15 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 echo 'Waiting for SonarQube Quality Gate analysis to finalize...'
-                waitForQualityGate abortPipeline: false
+                script {
+                    try {
+                        timeout(time: 3, unit: 'MINUTES') {
+                            waitForQualityGate abortPipeline: false
+                        }
+                    } catch (err) {
+                        echo "⚠️ SonarQube webhook was not received within 3 minutes. Proceeding with pipeline..."
+                    }
+                }
             }
         }
 
