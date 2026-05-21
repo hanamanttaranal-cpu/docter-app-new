@@ -1,9 +1,12 @@
 # Stage 1: Build the React Application
 FROM node:18-alpine AS build
+ARG ROLE=PATIENT
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Formulate the build-time environment variable for role locking
+ENV VITE_APP_ROLE=$ROLE
 RUN npm run build
 
 # Stage 2: Serve the Static Files via Nginx for high-performance delivery

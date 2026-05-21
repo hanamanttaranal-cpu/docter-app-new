@@ -8,6 +8,7 @@ interface DashboardSelectorProps {
   availableUsers: User[];
   socketLogs: string[];
   clearSocketLogs: () => void;
+  lockedRole?: 'PATIENT' | 'DOCTOR' | 'ADMIN';
 }
 
 export default function DashboardSelector({
@@ -15,9 +16,42 @@ export default function DashboardSelector({
   onUserChange,
   availableUsers,
   socketLogs,
-  clearSocketLogs
+  clearSocketLogs,
+  lockedRole
 }: DashboardSelectorProps) {
   const [showLogs, setShowLogs] = useState(false);
+
+  const getHeaderStyle = () => {
+    switch (lockedRole) {
+      case 'ADMIN':
+        return {
+          title: 'MedConsult Admin Portal',
+          subtitle: 'System Control & Analytics',
+          logoBg: 'bg-indigo-600 shadow-indigo-600/15',
+          activeRing: 'ring-indigo-500/10',
+          roleLabel: 'Admin Terminal'
+        };
+      case 'DOCTOR':
+        return {
+          title: 'MedConsult Clinical Portal',
+          subtitle: 'Doctor Medical Office',
+          logoBg: 'bg-teal-600 shadow-teal-600/15',
+          activeRing: 'ring-teal-500/10',
+          roleLabel: 'Clinical Console'
+        };
+      case 'PATIENT':
+      default:
+        return {
+          title: 'MedConsult Patient Console',
+          subtitle: 'On-Demand Consultation',
+          logoBg: 'bg-emerald-600 shadow-emerald-600/15',
+          activeRing: 'ring-emerald-500/10',
+          roleLabel: 'Patient Access'
+        };
+    }
+  };
+
+  const style = getHeaderStyle();
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-xs" id="app-header">
@@ -25,19 +59,19 @@ export default function DashboardSelector({
         <div className="flex justify-between h-16 items-center">
           {/* Logo Brand / Icon */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black shadow-md shadow-emerald-600/15">
+            <div className={`w-10 h-10 rounded-xl ${style.logoBg} flex items-center justify-center text-white font-black shadow-md`}>
               <Activity className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <span className="text-md sm:text-lg font-black text-gray-900 tracking-tight block">MedConsult Enterprise</span>
-              <span className="text-2xs font-bold text-gray-400 uppercase tracking-widest block -mt-1">Spring + React Ecosystem</span>
+              <span className="text-md sm:text-lg font-black text-gray-900 tracking-tight block">{style.title}</span>
+              <span className="text-2xs font-bold text-gray-400 uppercase tracking-widest block -mt-1">{style.subtitle}</span>
             </div>
           </div>
 
           {/* Center Sandbox Broker Status */}
           <div className="hidden md:flex items-center gap-3 bg-slate-50 border border-gray-100 rounded-full py-1.5 px-3">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            <span className="text-xs font-semibold text-gray-600 font-mono">STOMP Session Token: OK</span>
+            <span className="text-xs font-semibold text-gray-600 font-mono">STOMP: Port-Mapped OK</span>
             <button
               onClick={() => setShowLogs(!showLogs)}
               className="text-2xs bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors font-bold px-2 py-0.5 rounded-sm flex items-center gap-1"
@@ -50,7 +84,7 @@ export default function DashboardSelector({
 
           {/* User Select & Switcher */}
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-gray-400 font-sans hidden sm:inline">Active Role:</span>
+            <span className="text-xs font-semibold text-gray-400 font-sans hidden sm:inline">{style.roleLabel}:</span>
             <div className="relative">
               <select
                 value={currentUser.id}
@@ -63,7 +97,7 @@ export default function DashboardSelector({
               >
                 {availableUsers.map(user => (
                   <option key={user.id} value={user.id}>
-                    {user.role} - {user.name}
+                    {user.name} ({user.email.split('@')[0]})
                   </option>
                 ))}
               </select>
@@ -80,7 +114,7 @@ export default function DashboardSelector({
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.name}
-                className="w-9 h-9 rounded-full ring-2 ring-emerald-500/10 object-cover"
+                className={`w-9 h-9 rounded-full ring-2 ${style.logoBg.replace('bg-', 'ring-').split(' ')[0]}/10 object-cover`}
               />
             </div>
           </div>

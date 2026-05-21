@@ -39,24 +39,62 @@ services:
       - SPRING_DATASOURCE_USERNAME=docconsult_user
       - SPRING_DATASOURCE_PASSWORD=docconsult_password
       - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-      - CLOUDINARY_CLOUD_NAME=dmycloudname
-      - CLOUDINARY_API_KEY=123456789012345
-      - CLOUDINARY_API_SECRET=abc123xyz_cloudinary_secret
+      - CLOUDINARY_CLOUD_NAME=docconsult_cloud
+      - CLOUDINARY_API_KEY=346394969957731
+      - CLOUDINARY_API_SECRET=UbgLX3_vAMfvnHupOMGxxkN_WkM
     depends_on:
       mysql-db:
         condition: service_healthy
     networks:
       - docconsult-network
 
-  # React + Vite Frontend Web App
-  frontend-app:
+  # Patient Web Entrance (Portal)
+  frontend-patient:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: docconsult-frontend
+      args:
+        - ROLE=PATIENT
+    container_name: docconsult-frontend-patient
     restart: always
     ports:
       - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend-service
+    networks:
+      - docconsult-network
+
+  # Doctor Web Entrance (Clinical)
+  frontend-doctor:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - ROLE=DOCTOR
+    container_name: docconsult-frontend-doctor
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend-service
+    networks:
+      - docconsult-network
+
+  # Administration Web Entrance (Management)
+  frontend-admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - ROLE=ADMIN
+    container_name: docconsult-frontend-admin
+    restart: always
+    ports:
+      - "3002:3000"
     environment:
       - VITE_API_URL=http://localhost:8080
     depends_on:

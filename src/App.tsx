@@ -30,8 +30,28 @@ export default function App() {
     { id: 'admin-1', name: 'Platform Administrator', email: 'admin@platform.com', role: 'ADMIN', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150' }
   ];
 
+  // Helper to detect current locked role from build-time environment variable OR active host port
+  const getRoleFromEnvironmentOrPort = (): 'PATIENT' | 'DOCTOR' | 'ADMIN' => {
+    const envRole = import.meta.env.VITE_APP_ROLE;
+    if (envRole === 'ADMIN' || envRole === 'DOCTOR' || envRole === 'PATIENT') {
+      return envRole;
+    }
+    if (typeof window !== 'undefined' && window.location) {
+      const port = window.location.port;
+      if (port === '3002') return 'ADMIN';
+      if (port === '3001') return 'DOCTOR';
+      if (port === '3000') return 'PATIENT';
+    }
+    return 'PATIENT';
+  };
+
+  const activeRole = getRoleFromEnvironmentOrPort();
+  const roleFilteredUsers = DEMO_USERS.filter(u => u.role === activeRole);
+
   // Global System Memory
-  const [currentUser, setCurrentUser] = useState<User>(DEMO_USERS[0]);
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    return roleFilteredUsers[0] || DEMO_USERS[0];
+  });
   const [doctors, setDoctors] = useState<DoctorProfile[]>(() => {
     // Synchronize doctors using matching IDs
     return INITIAL_DOCTORS;
@@ -220,9 +240,10 @@ export default function App() {
           setCurrentUser(usr);
           addSocketLog(`>>> SEND\ndestination:/app/session/switch\n\n{"oldRole":"${currentUser.role}","newRole":"${usr.role}"}`);
         }}
-        availableUsers={users}
+        availableUsers={users.filter(u => u.role === activeRole)}
         socketLogs={socketLogs}
         clearSocketLogs={clearSocketLogs}
+        lockedRole={activeRole}
       />
 
       {/* Primary Workspace container */}
