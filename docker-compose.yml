@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # MySQL Database Instance
+  mysql-db:
+    image: mysql:8.0
+    container_name: docconsult-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: docconsult_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: docconsult_user
+      MYSQL_PASSWORD: docconsult_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docconsult-network
+
+  # Java Spring Boot 3 Backend Service
+  backend-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: docconsult-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/docconsult_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=docconsult_user
+      - SPRING_DATASOURCE_PASSWORD=docconsult_password
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      - CLOUDINARY_CLOUD_NAME=dmycloudname
+      - CLOUDINARY_API_KEY=123456789012345
+      - CLOUDINARY_API_SECRET=abc123xyz_cloudinary_secret
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - docconsult-network
+
+  # React + Vite Frontend Web App
+  frontend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: docconsult-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend-service
+    networks:
+      - docconsult-network
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  docconsult-network:
+    driver: bridge
