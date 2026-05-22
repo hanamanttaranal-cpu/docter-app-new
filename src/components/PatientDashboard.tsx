@@ -11,6 +11,7 @@ interface PatientDashboardProps {
   patientId: string;
   patientName: string;
   triggerStompFrame: (frame: string) => void;
+  onlineDoctors?: any[];
 }
 
 export default function PatientDashboard({
@@ -21,7 +22,8 @@ export default function PatientDashboard({
   onSendMessage,
   patientId,
   patientName,
-  triggerStompFrame
+  triggerStompFrame,
+  onlineDoctors = []
 }: PatientDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('All');
@@ -181,19 +183,27 @@ export default function PatientDashboard({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredDoctors.map(doctor => (
-                <div key={doctor.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-500/20 hover:shadow-lg transition-all flex flex-col justify-between" id={`doc-card-${doctor.id}`}>
-                  <div>
-                    <div className="flex items-start gap-3">
-                      <img src={doctor.avatarUrl} alt={doctor.name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-100" />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="font-bold text-gray-900 text-sm leading-snug">{doctor.name}</h4>
-                          {doctor.isVerified && (
-                            <span className="bg-emerald-50 text-emerald-700 text-3xs px-1.5 py-0.5 rounded-sm font-semibold tracking-wider uppercase">Verified</span>
-                          )}
-                        </div>
-                        <p className="text-xs font-semibold text-emerald-600 mt-0.5">{doctor.specialization}</p>
+              {filteredDoctors.map(doctor => {
+                const isDoctorOnline = onlineDoctors.some(od => od.id === doctor.id || od.email === doctor.email);
+                return (
+                  <div key={doctor.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-500/20 hover:shadow-lg transition-all flex flex-col justify-between animate-fade-in" id={`doc-card-${doctor.id}`}>
+                    <div>
+                      <div className="flex items-start gap-4">
+                        <img src={doctor.avatarUrl} alt={doctor.name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-100" />
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="font-bold text-gray-900 text-sm leading-snug">{doctor.name}</h4>
+                            {doctor.isVerified && (
+                              <span className="bg-emerald-50 text-emerald-700 text-3xs px-1.5 py-0.5 rounded-sm font-semibold tracking-wider uppercase">Verified</span>
+                            )}
+                            {isDoctorOnline && (
+                              <span className="bg-teal-50 text-teal-800 text-[9px] px-1.5 py-0.5 rounded-sm font-bold tracking-wider uppercase flex items-center gap-1 animate-pulse" title="Connected in other browser tab via Google Auth">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Active Online
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-semibold text-emerald-600 mt-0.5">{doctor.specialization}</p>
                         
                         <div className="flex items-center gap-1 mt-1 text-2xs text-gray-400">
                           <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -239,7 +249,8 @@ export default function PatientDashboard({
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>

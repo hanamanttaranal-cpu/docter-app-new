@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Appointment, ChatMessage } from '../types';
+import { Appointment, ChatMessage, User } from '../types';
 import { ShieldCheck, Calendar, Clock, MessageSquare, Check, X, Send, Activity, Users, DollarSign, Award, AlertCircle } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -11,6 +11,8 @@ interface DoctorDashboardProps {
   onUpdateAppointmentStatus: (appointmentId: string, status: 'APPROVED' | 'REJECTED') => void;
   onSendMessage: (appointmentId: string, content: string) => void;
   triggerStompFrame: (frame: string) => void;
+  onlinePatients?: User[];
+  onStartInstantChatWithPatient?: (patientId: string, patientName: string) => void;
 }
 
 export default function DoctorDashboard({
@@ -21,7 +23,9 @@ export default function DoctorDashboard({
   chatMessages,
   onUpdateAppointmentStatus,
   onSendMessage,
-  triggerStompFrame
+  triggerStompFrame,
+  onlinePatients = [],
+  onStartInstantChatWithPatient
 }: DoctorDashboardProps) {
   const [activeChatAppointment, setActiveChatAppointment] = useState<Appointment | null>(null);
   const [docMessageInput, setDocMessageInput] = useState('');
@@ -242,6 +246,43 @@ export default function DoctorDashboard({
 
       {/* RIGHT PORTAL: Approved Active Schedule & Chats (5 cols) */}
       <div className="lg:col-span-5 space-y-6">
+        {/* Patients Online Panel */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
+          <h3 className="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wider flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Patients Online ({onlinePatients.length})
+          </h3>
+          <p className="text-[10px] text-slate-400 mb-3 leading-tight">Google-authorized patients currently active. Click below to start an instant human-to-human chat session.</p>
+          
+          {onlinePatients.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">No patients are online right now. Open another window/tab as a Patient to test bi-directional chat!</p>
+          ) : (
+            <div className="space-y-2.5">
+              {onlinePatients.map(user => (
+                <div key={user.id} className="p-3 rounded-xl border border-slate-100 hover:border-teal-600/10 transition-colors bg-slate-50/50 flex justify-between items-center animate-fade-in" id={`online-patient-card-${user.id}`}>
+                  <div className="flex items-center gap-2.5">
+                    <img src={user.avatarUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/10" />
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-2xs">{user.name}</h4>
+                      <p className="text-[10px] font-mono text-gray-400">{user.email}</p>
+                    </div>
+                  </div>
+
+                  {onStartInstantChatWithPatient && (
+                    <button
+                      onClick={() => onStartInstantChatWithPatient(user.id, user.name)}
+                      className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
+                      id={`start-chat-online-${user.id}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> Start Chat
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
           <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Active schedules ({activeSchedules.length})</h3>
           

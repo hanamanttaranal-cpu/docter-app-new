@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Activity, ShieldAlert, Heart, Settings, Network } from 'lucide-react';
+import { Activity, ShieldAlert, Heart, Settings, Network, LogOut } from 'lucide-react';
 
 interface DashboardSelectorProps {
   currentUser: User;
@@ -9,6 +9,7 @@ interface DashboardSelectorProps {
   socketLogs: string[];
   clearSocketLogs: () => void;
   lockedRole?: 'PATIENT' | 'DOCTOR' | 'ADMIN';
+  onLogOut?: () => void;
 }
 
 export default function DashboardSelector({
@@ -17,12 +18,13 @@ export default function DashboardSelector({
   availableUsers,
   socketLogs,
   clearSocketLogs,
-  lockedRole
+  lockedRole,
+  onLogOut
 }: DashboardSelectorProps) {
   const [showLogs, setShowLogs] = useState(false);
 
   const getHeaderStyle = () => {
-    switch (lockedRole) {
+    switch (currentUser?.role || lockedRole) {
       case 'ADMIN':
         return {
           title: 'MedConsult Admin Portal',
@@ -84,39 +86,34 @@ export default function DashboardSelector({
 
           {/* User Select & Switcher */}
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-gray-400 font-sans hidden sm:inline">{style.roleLabel}:</span>
-            <div className="relative">
-              <select
-                value={currentUser.id}
-                onChange={(e) => {
-                  const newUser = availableUsers.find(u => u.id === e.target.value);
-                  if (newUser) onUserChange(newUser);
-                }}
-                className="appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg pl-3 pr-8 py-2 hover:border-slate-300 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                id="role-switch-selector"
-              >
-                {availableUsers.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email.split('@')[0]})
-                  </option>
-                ))}
-              </select>
-              {/* Custom Arrow */}
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                </svg>
-              </div>
+            <div className="text-right">
+              <span className="text-2xs font-bold text-gray-400 uppercase block tracking-wider leading-none">Logged In As</span>
+              <span className="text-xs font-bold text-slate-800 font-sans block mt-0.5" id="current-user-fullname">
+                {currentUser?.name || 'Anonymous User'}
+              </span>
             </div>
 
             {/* Profile Avatar Frame */}
             <div className="hidden sm:block">
               <img
-                src={currentUser.avatarUrl}
-                alt={currentUser.name}
+                src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
+                alt={currentUser?.name || 'Avatar'}
                 className={`w-9 h-9 rounded-full ring-2 ${style.logoBg.replace('bg-', 'ring-').split(' ')[0]}/10 object-cover`}
               />
             </div>
+
+            {/* Elegant Sign Out Button */}
+            {onLogOut && (
+              <button
+                onClick={onLogOut}
+                className="text-2xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                id="sign-out-dashboard-button"
+                title="Log Out Session"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Sign Out</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

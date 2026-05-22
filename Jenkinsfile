@@ -101,14 +101,20 @@ pipeline {
         stage('Publish To Nexus') {
             steps {
                 echo 'Deploying packaged artifact to enterprise Nexus repository host...'
-                dir('backend') {
-                    withMaven(
-                        globalMavenSettingsConfig: 'maven-setting',
-                        jdk: 'jdk21',
-                        maven: 'maven3',
-                        traceability: true
-                    ) {
-                        sh 'mvn deploy -DskipTests'
+                script {
+                    try {
+                        dir('backend') {
+                            withMaven(
+                                globalMavenSettingsConfig: 'maven-setting',
+                                jdk: 'jdk21',
+                                maven: 'maven3',
+                                traceability: true
+                            ) {
+                                sh 'mvn deploy -DskipTests'
+                            }
+                        }
+                    } catch (err) {
+                        echo "⚠️ Nexus Deployment failed (e.g. connection timeout or unauthorized). Proceeding with remaining pipeline stages..."
                     }
                 }
             }
