@@ -62,7 +62,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Triggering static code analysis to SonarQube Server...'
-                withSonarQubeEnv('sonar-server') {
+                withSonarQubeEnv(installationName: 'sonar-server') {
                     sh """
                     ${SCANNER_HOME}/bin/sonar-scanner \
                     -Dsonar.projectName=doctor-backend \
