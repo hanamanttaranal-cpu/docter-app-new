@@ -2,7 +2,7 @@
 FROM node:18-alpine AS build
 ARG ROLE=PATIENT
 WORKDIR /app
-COPY package*.json ./
+COPY package.json ./
 RUN npm install
 COPY . .
 # Formulate the build-time environment variable for role locking
