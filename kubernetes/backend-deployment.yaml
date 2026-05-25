@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: medconsult
+  labels:
+    app: medconsult
+    component: backend
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: medconsult
+    component: backend
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: medconsult
+  labels:
+    app: medconsult
+    component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: medconsult
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: medconsult
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          # In practice, substitute with your pre-compiled docker image tag
+          image: medconsult/backend-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: medconsult-config
+                  key: SPRING_DATASOURCE_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: medconsult-config
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medconsult-secrets
+                  key: MYSQL_PASSWORD
+            - name: SPRING_JPA_DATABASE_PLATFORM
+              valueFrom:
+                configMapKeyRef:
+                  name: medconsult-config
+                  key: SPRING_JPA_DATABASE_PLATFORM
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: medconsult-config
+                  key: SPRING_JPA_HIBERNATE_DDL_AUTO
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi" 
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          # Robust probes using standard application actuator endpoints
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 2
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: medconsult
+  labels:
+    app: medconsult
+    component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
